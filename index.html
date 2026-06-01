@@ -125,7 +125,13 @@
 
   /* Weekly reflection note */
   .note-wrap{margin-top:6px;padding-top:16px;border-top:1px solid var(--line)}
-  .note-label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;margin-bottom:9px;display:block}
+  .note-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:9px}
+  .note-label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;display:block}
+  .note-status{font-size:11px;color:var(--ink-soft);letter-spacing:.02em;white-space:nowrap;
+    display:inline-flex;align-items:center;gap:4px;opacity:0;transition:opacity .25s ease}
+  .note-status.show{opacity:1}
+  .note-status.saved{color:var(--accent-deep)}
+  .note-status svg{width:11px;height:11px}
   .note{width:100%;min-height:62px;resize:vertical;background:var(--paper);border:1px solid var(--line-strong);border-radius:10px;
     padding:11px 13px;font-family:"Hanken Grotesk",sans-serif;font-size:13.5px;line-height:1.5;color:var(--ink);
     transition:border-color .15s ease,background .15s ease}
@@ -221,6 +227,7 @@
 
 <script>
 const CHECK = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 12.5l5 5L20 6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CHK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l5 5L19 6"/></svg>';
 const FLAME = '<svg class="flame" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.4 3-1.6 4.4-2.8 5.7C8 9 7 10.3 7 12.5A5 5 0 0 0 17 12.5c0-1.8-.7-3-1.6-4.2.2 1-.3 2-1.2 2.4.6-2.5-.8-5.7-2.2-8.7Z"/></svg>';
 const DAYS = ['M','T','W','T','F','S','S'];
 const ICON_UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>';
@@ -262,7 +269,8 @@ async function load(key){
 }
 async function save(key,val){
   mem[key] = val;
-  try{ localStorage.setItem(PREFIX+key, JSON.stringify(val)); }catch(e){}
+  try{ localStorage.setItem(PREFIX+key, JSON.stringify(val)); return true; }
+  catch(e){ return false; }  // storage blocked (e.g. file:// in Safari) — kept in memory only
 }
 
 // ---- week math ----
@@ -398,7 +406,11 @@ function renderTrack(ti){
   });
   html += card('Daily habits', 'Mon – Sun', 'Small and sustainable on top of your day job — about 45–60 min. Tap a day as you go.', hb);
 
-  const note = `<div class="note-wrap"><label class="note-label" for="weekNote">Reflection — what landed?</label>
+  const note = `<div class="note-wrap">
+    <div class="note-head">
+      <label class="note-label" for="weekNote">Reflection — what landed?</label>
+      <span class="note-status" id="noteStatus" aria-live="polite"></span>
+    </div>
     <textarea class="note" id="weekNote" placeholder="What got replies? Which framing worked? One line is enough.">${esc(weekState.note)}</textarea></div>`;
   html += card('This week’s goals', config.goals.length+' moves', 'The weekly batch. Quality of fit beats volume at your level.',
     config.goals.map((t,i)=>rowHTML(t,weekState.weekly[i],'weekly',i)).join('') + note);
@@ -494,10 +506,28 @@ function bind(){
   });
 
   const note=document.getElementById('weekNote');
+  const status=document.getElementById('noteStatus');
   if(note){
-    let t;
-    note.oninput = ()=>{ weekState.note=note.value; clearTimeout(t); t=setTimeout(()=>save(curKey,weekState),350); };
-    note.onblur = ()=>{ weekState.note=note.value; save(curKey,weekState); };
+    let t, hide;
+    const setStatus=(txt,saved)=>{
+      if(!status) return;
+      status.innerHTML = (saved?CHK:'')+txt;
+      status.classList.toggle('saved',!!saved);
+      status.classList.add('show');
+    };
+    const commit = async ()=>{
+      const ok = await save(curKey,weekState);
+      setStatus(ok?'Saved':'Won’t persist here', ok);
+      clearTimeout(hide);
+      if(ok) hide=setTimeout(()=>status&&status.classList.remove('show'),1800);
+    };
+    note.oninput = ()=>{
+      weekState.note=note.value;
+      setStatus('Saving…',false);
+      clearTimeout(t); clearTimeout(hide);
+      t=setTimeout(commit,450);
+    };
+    note.onblur = ()=>{ weekState.note=note.value; clearTimeout(t); commit(); };
   }
 }
 
