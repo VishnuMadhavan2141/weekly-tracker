@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Luck Surface Area — Weekly Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F2ECE1;
+    --card:#FBF8F2;
+    --ink:#211F1A;
+    --ink-soft:#756F62;
+    --line:#E4DCCC;
+    --line-strong:#D6CCB7;
+    --accent:#BE4310;
+    --accent-deep:#9A360C;
+    --accent-soft:rgba(190,67,16,0.10);
+    --today:rgba(190,67,16,0.07);
+    --radius:14px;
+    --ease-out:cubic-bezier(0.23,1,0.32,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--paper);color:var(--ink);font-family:"Hanken Grotesk",sans-serif;-webkit-font-smoothing:antialiased}
+  body{
+    min-height:100vh;
+    padding:34px 18px 70px;
+    background-image:radial-gradient(circle at 18% 0%,rgba(190,67,16,0.05),transparent 42%),radial-gradient(circle at 92% 12%,rgba(120,110,90,0.06),transparent 38%);
+  }
+  .wrap{max-width:720px;margin:0 auto}
+
+  /* Focus — keyboard only, never on mouse press */
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+  :focus:not(:focus-visible){outline:none}
+
+  /* Header */
+  .kicker{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:9px}
+  h1{font-family:"Fraunces",serif;font-weight:500;font-size:clamp(30px,7vw,46px);line-height:1.02;letter-spacing:-0.01em;margin-bottom:11px}
+  h1 .edit-input{font-family:"Fraunces",serif;font-weight:500;font-size:inherit;line-height:1.02;letter-spacing:-0.01em}
+  .lede{color:var(--ink-soft);font-size:14.5px;line-height:1.55;max-width:52ch}
+  .lede b{color:var(--ink);font-weight:600}
+
+  /* Week nav */
+  .weekbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:26px 0 8px;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
+  .weekbar .label{display:flex;flex-direction:column;gap:2px}
+  .weekbar .wk{font-family:"Fraunces",serif;font-size:18px;font-weight:500}
+  .weekbar .sub{font-size:11.5px;color:var(--ink-soft);letter-spacing:.02em}
+  .navbtns{display:flex;align-items:center;gap:7px}
+  .navbtn{border:1px solid var(--line-strong);background:var(--paper);color:var(--ink);width:36px;height:34px;
+    border-radius:9px;font-size:16px;cursor:pointer;display:grid;place-items:center;transition:transform .12s var(--ease-out),background .15s ease,border-color .15s ease}
+  .navbtn:active{transform:scale(0.93)}
+  .today-btn{width:auto;padding:0 13px;font-family:"Hanken Grotesk";font-size:12.5px;font-weight:600;letter-spacing:.02em}
+  @media(hover:hover) and (pointer:fine){.navbtn:hover{background:#fff;border-color:var(--accent)}}
+
+  /* Top bar: edit toggle sits beside the title */
+  .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+  .topbar .head-text{flex:1;min-width:0}
+  .edit-toggle{flex:none;margin-top:2px;border:1px solid var(--line-strong);background:var(--paper);color:var(--ink-soft);
+    height:34px;padding:0 12px;border-radius:9px;font-family:"Hanken Grotesk";font-size:12.5px;font-weight:600;letter-spacing:.02em;
+    cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:transform .12s var(--ease-out),background .15s ease,border-color .15s ease,color .15s ease}
+  .edit-toggle svg{width:14px;height:14px}
+  .edit-toggle:active{transform:scale(0.95)}
+  .edit-toggle.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  @media(hover:hover) and (pointer:fine){.edit-toggle:hover{border-color:var(--accent);color:var(--ink)}.edit-toggle.on:hover{color:#fff}}
+
+  /* Progress */
+  .progress{margin:14px 2px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .track{flex:1;min-width:160px;height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+  .fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-deep));border-radius:99px;transition:width .45s var(--ease-out)}
+  .pct{font-family:"Fraunces",serif;font-size:15px;font-weight:600;min-width:42px}
+  .days-done{font-size:12px;color:var(--ink-soft)}
+  .days-done b{color:var(--ink);font-weight:600}
+  .streak{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-soft);
+    padding:3px 9px;border:1px solid var(--line-strong);border-radius:99px;background:var(--paper);white-space:nowrap}
+  .streak.live{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-deep)}
+  .streak b{font-weight:600;font-variant-numeric:tabular-nums}
+  .streak .flame{width:13px;height:13px;flex:none}
+
+  /* Cards */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 20px 22px;margin-bottom:18px;
+    opacity:0;transform:translateY(10px);animation:rise .5s var(--ease-out) forwards}
+  @keyframes rise{to{opacity:1;transform:translateY(0)}}
+  .card-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:4px}
+  .card-title{font-family:"Fraunces",serif;font-size:20px;font-weight:500;letter-spacing:-0.01em}
+  .card-tag{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;white-space:nowrap}
+  .card-desc{font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:16px}
+
+  /* Setup rows */
+  .row{display:flex;align-items:flex-start;gap:13px;padding:11px 0;border-top:1px solid var(--line)}
+  .row:first-of-type{border-top:none}
+  .row .txt{font-size:14px;line-height:1.45;padding-top:2px}
+  .row.checked .txt{color:var(--ink-soft);text-decoration:line-through;text-decoration-color:var(--line-strong)}
+
+  /* Checkbox */
+  .box{flex:none;width:23px;height:23px;border:1.8px solid var(--line-strong);border-radius:7px;background:var(--paper);
+    cursor:pointer;display:grid;place-items:center;transition:transform .12s var(--ease-out),background .16s ease,border-color .16s ease}
+  .box:active{transform:scale(0.9)}
+  .box svg{width:13px;height:13px;opacity:0;transform:scale(0.5);transition:opacity .16s var(--ease-out),transform .16s var(--ease-out)}
+  .box.on{background:var(--accent);border-color:var(--accent)}
+  .box.on svg{opacity:1;transform:scale(1)}
+  .box.on svg path{stroke:#fff}
+  @media(hover:hover) and (pointer:fine){.box:hover{border-color:var(--accent)}}
+
+  /* Daily habit blocks */
+  .habit{padding:15px 0;border-top:1px solid var(--line)}
+  .habit:first-of-type{border-top:none;padding-top:2px}
+  .habit-title{font-size:14.5px;font-weight:600;margin-bottom:2px}
+  .habit-note{font-size:12px;color:var(--ink-soft);line-height:1.45;margin-bottom:11px}
+  .days{display:flex;gap:6px}
+  .day{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+  .day .dl{font-size:10.5px;font-weight:600;color:var(--ink-soft);letter-spacing:.02em}
+  .day.is-today .dl{color:var(--accent)}
+  .dot{width:100%;max-width:34px;aspect-ratio:1;border:1.7px solid var(--line-strong);border-radius:8px;background:var(--paper);
+    cursor:pointer;display:grid;place-items:center;transition:transform .12s var(--ease-out),background .16s ease,border-color .16s ease}
+  .dot:active{transform:scale(0.88)}
+  .dot svg{width:12px;height:12px;opacity:0;transform:scale(0.5);transition:opacity .15s var(--ease-out),transform .15s var(--ease-out)}
+  .dot.on{background:var(--accent);border-color:var(--accent)}
+  .dot.on svg{opacity:1;transform:scale(1)}
+  .dot.on svg path{stroke:#fff}
+  .day.is-today .dot:not(.on){background:var(--today);border-color:var(--accent)}
+  @media(hover:hover) and (pointer:fine){.dot:hover{border-color:var(--accent)}}
+
+  /* Weekly reflection note */
+  .note-wrap{margin-top:6px;padding-top:16px;border-top:1px solid var(--line)}
+  .note-label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;margin-bottom:9px;display:block}
+  .note{width:100%;min-height:62px;resize:vertical;background:var(--paper);border:1px solid var(--line-strong);border-radius:10px;
+    padding:11px 13px;font-family:"Hanken Grotesk",sans-serif;font-size:13.5px;line-height:1.5;color:var(--ink);
+    transition:border-color .15s ease,background .15s ease}
+  .note::placeholder{color:var(--ink-soft);opacity:.7}
+  .note:focus{outline:none;border-color:var(--accent);background:#fff}
+
+  /* Edit mode */
+  .edit-row{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px dashed var(--line-strong)}
+  .edit-row:first-of-type{border-top:none}
+  .edit-fields{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
+  .edit-input{width:100%;background:var(--paper);border:1px solid var(--line-strong);border-radius:8px;padding:8px 11px;
+    font-family:"Hanken Grotesk",sans-serif;font-size:13.5px;color:var(--ink);transition:border-color .15s ease,background .15s ease}
+  .edit-input.sub{font-size:12px;color:var(--ink-soft)}
+  .edit-input:focus{outline:none;border-color:var(--accent);background:#fff}
+  .icon-btn{flex:none;width:30px;height:30px;border:1px solid var(--line-strong);background:var(--paper);border-radius:8px;
+    cursor:pointer;display:grid;place-items:center;color:var(--ink-soft);
+    transition:transform .12s var(--ease-out),background .15s ease,border-color .15s ease,color .15s ease}
+  .icon-btn svg{width:14px;height:14px}
+  .icon-btn:active{transform:scale(0.9)}
+  @media(hover:hover) and (pointer:fine){.icon-btn:hover{border-color:var(--accent);color:var(--accent)}}
+  .reorder{display:flex;flex-direction:column;gap:3px;flex:none;padding-top:2px}
+  .reorder .icon-btn{width:26px;height:22px}
+  .add-btn{margin-top:12px;width:100%;border:1px dashed var(--line-strong);background:transparent;color:var(--ink-soft);
+    padding:10px;border-radius:10px;font-family:"Hanken Grotesk",sans-serif;font-size:13px;font-weight:600;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:7px;transition:transform .12s var(--ease-out),border-color .15s ease,color .15s ease,background .15s ease}
+  .add-btn svg{width:14px;height:14px}
+  .add-btn:active{transform:scale(0.99)}
+  @media(hover:hover) and (pointer:fine){.add-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}}
+  .edit-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    background:var(--accent-soft);border:1px solid rgba(190,67,16,0.25);border-radius:var(--radius);padding:12px 15px;margin-bottom:18px}
+  .edit-banner .msg{font-size:12.5px;color:var(--accent-deep);line-height:1.45}
+  .edit-banner .msg b{font-weight:600}
+  .link-btn{background:none;border:none;color:var(--accent-deep);font-family:"Hanken Grotesk",sans-serif;font-size:12.5px;
+    font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:4px 2px}
+  .link-btn:active{opacity:.7}
+
+  .footnote{text-align:center;font-size:12px;color:var(--ink-soft);line-height:1.6;margin-top:26px;padding:0 10px}
+  .footnote b{color:var(--ink);font-weight:600}
+
+  .loading{text-align:center;color:var(--ink-soft);font-size:13px;padding:40px 0;font-style:italic}
+
+  @media (prefers-reduced-motion:reduce){
+    .card{animation:none;opacity:1;transform:none}
+    .fill{transition:none}
+    .box,.dot,.box svg,.dot svg,.navbtn,.edit-toggle,.icon-btn,.add-btn{transition:opacity .15s ease}
+  }
+  @media(max-width:420px){
+    .days{gap:4px}
+    .card{padding:17px 15px 19px}
+    body{padding:26px 12px 60px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="head-text">
+      <div class="kicker">Remote work · job search engine</div>
+      <h1 id="title">Luck Surface&nbsp;Area</h1>
+    </div>
+    <button class="edit-toggle" id="editToggle" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      <span id="editToggleLabel">Edit</span>
+    </button>
+  </div>
+  <p class="lede">Luck = how much you <b>make</b> × how many people <b>see&nbsp;it</b>. Run the same five moves every week. Building feeds the posting, posting feeds the inbound, inbound feeds the interviews. <b>Consistency over 8–12 weeks</b> is what moves the needle.</p>
+
+  <div class="weekbar">
+    <div class="navbtns">
+      <button class="navbtn" id="prev" aria-label="Previous week">‹</button>
+    </div>
+    <div class="label" style="align-items:center;text-align:center;flex:1">
+      <span class="wk" id="weekLabel">—</span>
+      <span class="sub" id="weekSub"></span>
+    </div>
+    <div class="navbtns">
+      <button class="navbtn today-btn" id="thisWeek">This week</button>
+      <button class="navbtn" id="next" aria-label="Next week">›</button>
+    </div>
+  </div>
+
+  <div class="progress">
+    <span class="pct" id="pct">0%</span>
+    <div class="track"><div class="fill" id="fill"></div></div>
+    <span class="days-done" id="daysDone">Full days <b>0/7</b></span>
+    <span class="streak" id="streak" hidden></span>
+  </div>
+
+  <div id="content"><div class="loading">Loading your week…</div></div>
+
+  <p class="footnote">Progress saves automatically on this device. <b>Filter every role for worldwide / EoR-friendly</b> — skip “Remote · US only.”</p>
+</div>
+
+<script>
+const CHECK = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 12.5l5 5L20 6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const FLAME = '<svg class="flame" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.4 3-1.6 4.4-2.8 5.7C8 9 7 10.3 7 12.5A5 5 0 0 0 17 12.5c0-1.8-.7-3-1.6-4.2.2 1-.3 2-1.2 2.4.6-2.5-.8-5.7-2.2-8.7Z"/></svg>';
+const DAYS = ['M','T','W','T','F','S','S'];
+const ICON_UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>';
+const ICON_DOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+const ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>';
+const ICON_PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>';
+
+// ---- defaults (used until the user edits, and as a reset target) ----
+const DEFAULTS = {
+  title: "Luck Surface Area",
+  setup: [
+    "Reposition everywhere: “Lead designer at Swiggy who ships — builds with AI.”",
+    "Personal site: 2–3 outcome-driven case studies + 1 thing you vibe-coded end to end.",
+    "Set up inbound: YC Work-at-a-Startup profile, Wellfound, and an aligned LinkedIn/X headline."
+  ],
+  habits: [
+    {t:"Ship a little", n:"20+ minutes moving one buildable thing forward. This is the engine."},
+    {t:"Post or engage once", n:"One genuine touch — a build screenshot, a learning, a real reply."},
+    {t:"One quality outreach or application", n:"A single high-fit message, not ten cold ones."},
+    {t:"Capture a lead", n:"Save one role or company to your list with a quick note."}
+  ],
+  goals: [
+    "Publish one substantial thing — a build demo, a UX teardown, or a case-study update.",
+    "Batch 5–8 targeted applications + follow-ups (worldwide / EoR-friendly only).",
+    "Have 1–2 real conversations — a call, a community, a DM that goes somewhere.",
+    "Review & adjust — what got replies? Which framing landed?",
+    "Move the contract on-ramp forward — profiles say “open to contract”; pursue a gig."
+  ]
+};
+
+// ---- storage: localStorage, namespaced; graceful fallback to memory ----
+// All public Pages tools share the vishnumadhavan2141.github.io origin,
+// so the prefix keeps this tool's keys from colliding with sibling tools.
+const PREFIX = 'lsa:';            // luck surface area
+const mem = {};
+async function load(key){
+  try{ const v = localStorage.getItem(PREFIX+key); return v ? JSON.parse(v) : null; }
+  catch(e){ return key in mem ? mem[key] : null; }
+}
+async function save(key,val){
+  mem[key] = val;
+  try{ localStorage.setItem(PREFIX+key, JSON.stringify(val)); }catch(e){}
+}
+
+// ---- week math ----
+function mondayOf(d){
+  const x = new Date(d); const day = (x.getDay()+6)%7;
+  x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x;
+}
+function fmt(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+// Local date key (NOT toISOString — that's UTC and shifts the day for users
+// east/west of UTC, which would mis-key weeks and break "today" + streaks).
+function iso(d){ const x=new Date(d); const p=n=>String(n).padStart(2,'0'); return x.getFullYear()+'-'+p(x.getMonth()+1)+'-'+p(x.getDate()); }
+
+let cursor = mondayOf(new Date());
+const realMonday = mondayOf(new Date());
+
+let config = null;              // {title, setup[], habits[], goals[]}
+let setupState = null;          // [bool] per setup item
+let weekState = null;           // {daily:[[7]xN], weekly:[M], note:""}
+let curKey = '';
+let editing = false;
+
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function emptyWeek(){
+  return {daily:config.habits.map(()=>[false,false,false,false,false,false,false]), weekly:config.goals.map(()=>false), note:""};
+}
+
+// Keep stored state shaped to the current config (habits/goals counts can change).
+function reconcileWeek(){
+  if(!weekState.daily) weekState.daily=[];
+  weekState.daily = config.habits.map((_,i)=> weekState.daily[i] || [false,false,false,false,false,false,false]);
+  if(!weekState.weekly) weekState.weekly=[];
+  weekState.weekly = config.goals.map((_,i)=> weekState.weekly[i] ?? false);
+  if(typeof weekState.note !== 'string') weekState.note = "";
+}
+function reconcileSetup(){
+  setupState = config.setup.map((_,i)=> setupState[i] ?? false);
+}
+
+async function ensureConfig(){
+  if(config) return;
+  const saved = await load('config');
+  config = Object.assign(clone(DEFAULTS), saved || {});
+  // ensure shapes
+  config.setup = (config.setup||[]).map(String);
+  config.habits = (config.habits||[]).map(h=>({t:String(h.t||''),n:String(h.n||'')}));
+  config.goals = (config.goals||[]).map(String);
+}
+async function ensureSetup(){
+  if(setupState) return;
+  setupState = await load('setup') || config.setup.map(()=>false);
+  reconcileSetup();
+}
+async function loadWeek(){
+  curKey = 'week:'+iso(cursor);
+  weekState = await load(curKey) || emptyWeek();
+  reconcileWeek();
+}
+async function saveConfig(){ await save('config', config); }
+
+function todayIndex(){
+  if(iso(cursor)!==iso(realMonday)) return -1;
+  return (new Date().getDay()+6)%7;
+}
+
+// ---- streak: consecutive full days, walked backward across weeks ----
+async function computeStreak(){
+  const weekCache = {};
+  async function getWeek(d){
+    const key='week:'+iso(mondayOf(d));
+    if(!(key in weekCache)) weekCache[key]=await load(key);
+    return weekCache[key];
+  }
+  async function dayFull(d){
+    const w = await getWeek(d);
+    if(!w || !w.daily || !w.daily.length) return false;
+    const di=(d.getDay()+6)%7;
+    return w.daily.every(r=>r && r[di]);
+  }
+  let d=new Date(); d.setHours(0,0,0,0);
+  // A still-in-progress today shouldn't break a streak — start from yesterday if today isn't full yet.
+  if(!(await dayFull(d))) d.setDate(d.getDate()-1);
+  let streak=0, guard=0;
+  while(await dayFull(d) && guard++ < 800){ streak++; d.setDate(d.getDate()-1); }
+  return streak;
+}
+async function renderStreak(){
+  const el=document.getElementById('streak');
+  const n=await computeStreak();
+  if(n<2){ el.hidden=true; return; }
+  el.hidden=false;
+  el.classList.toggle('live', n>=3);
+  el.innerHTML=FLAME+'<b>'+n+'</b> day streak';
+}
+
+function render(){
+  const c = document.getElementById('content');
+  const ti = todayIndex();
+
+  document.getElementById('title').innerHTML = config.title;
+
+  // week label
+  const end = new Date(cursor); end.setDate(end.getDate()+6);
+  document.getElementById('weekLabel').textContent = fmt(cursor)+' – '+fmt(end);
+  const diff = Math.round((cursor-realMonday)/(7*864e5));
+  document.getElementById('weekSub').textContent =
+    diff===0 ? 'This week' : diff===-1 ? 'Last week' : diff===1 ? 'Next week' :
+    diff<0 ? Math.abs(diff)+' weeks ago' : 'in '+diff+' weeks';
+
+  c.innerHTML = editing ? renderEdit() : renderTrack(ti);
+  bind();
+  updateProgress();
+  renderStreak();
+}
+
+// ---------- tracking view ----------
+function renderTrack(ti){
+  let html = '';
+
+  html += card('Foundation', 'Do once', 'Get these right before the weekly rhythm — they make everything else work.',
+    config.setup.map((t,i)=>rowHTML(t,setupState[i],'setup',i)).join(''));
+
+  let hb = '';
+  config.habits.forEach((h,hi)=>{
+    let days = '';
+    for(let d=0;d<7;d++){
+      const on = weekState.daily[hi][d];
+      days += `<div class="day ${d===ti?'is-today':''}">
+        <span class="dl">${DAYS[d]}</span>
+        <div class="dot ${on?'on':''}" data-h="${hi}" data-d="${d}" role="checkbox" tabindex="0" aria-checked="${on}" aria-label="${esc(h.t)} — ${dayName(d)}">${CHECK}</div>
+      </div>`;
+    }
+    hb += `<div class="habit"><div class="habit-title">${esc(h.t)}</div><div class="habit-note">${esc(h.n)}</div><div class="days">${days}</div></div>`;
+  });
+  html += card('Daily habits', 'Mon – Sun', 'Small and sustainable on top of your day job — about 45–60 min. Tap a day as you go.', hb);
+
+  const note = `<div class="note-wrap"><label class="note-label" for="weekNote">Reflection — what landed?</label>
+    <textarea class="note" id="weekNote" placeholder="What got replies? Which framing worked? One line is enough.">${esc(weekState.note)}</textarea></div>`;
+  html += card('This week’s goals', config.goals.length+' moves', 'The weekly batch. Quality of fit beats volume at your level.',
+    config.goals.map((t,i)=>rowHTML(t,weekState.weekly[i],'weekly',i)).join('') + note);
+
+  return html;
+}
+
+// ---------- edit view ----------
+function renderEdit(){
+  let html = `<div class="edit-banner">
+    <span class="msg"><b>Editing</b> — rename, reorder, add or remove. Changes apply to every week.</span>
+    <button class="link-btn" id="resetBtn">Reset to defaults</button>
+  </div>`;
+
+  // title
+  html += card('Headline', 'Title', 'The name at the top of your tracker.',
+    `<input class="edit-input" id="titleEdit" value="${esc(config.title)}" aria-label="Tracker title">`);
+
+  // setup
+  html += card('Foundation', 'Do once', 'One-time setup items.',
+    config.setup.map((t,i)=>editLineHTML('setup',i,t)).join('') + addBtn('setup','Add a foundation item'));
+
+  // habits
+  html += card('Daily habits', 'Mon – Sun', 'Each becomes a row of daily dots.',
+    config.habits.map((h,i)=>editLineHTML('habit',i,h.t,h.n)).join('') + addBtn('habit','Add a daily habit'));
+
+  // goals
+  html += card('This week’s goals', 'Weekly', 'The weekly batch of moves.',
+    config.goals.map((t,i)=>editLineHTML('goal',i,t)).join('') + addBtn('goal','Add a weekly goal'));
+
+  return html;
+}
+function editLineHTML(group,i,primary,secondary){
+  const sub = secondary!==undefined
+    ? `<input class="edit-input sub" data-g="${group}" data-i="${i}" data-f="n" value="${esc(secondary)}" placeholder="Short note" aria-label="Note">`
+    : '';
+  return `<div class="edit-row">
+    <div class="reorder">
+      <button class="icon-btn" data-move="up" data-g="${group}" data-i="${i}" aria-label="Move up">${ICON_UP}</button>
+      <button class="icon-btn" data-move="down" data-g="${group}" data-i="${i}" aria-label="Move down">${ICON_DOWN}</button>
+    </div>
+    <div class="edit-fields">
+      <input class="edit-input" data-g="${group}" data-i="${i}" data-f="t" value="${esc(primary)}" placeholder="${group==='habit'?'Habit name':'Describe it'}" aria-label="Text">
+      ${sub}
+    </div>
+    <button class="icon-btn" data-del="1" data-g="${group}" data-i="${i}" aria-label="Delete">${ICON_TRASH}</button>
+  </div>`;
+}
+function addBtn(group,label){
+  return `<button class="add-btn" data-add="${group}">${ICON_PLUS}${label}</button>`;
+}
+
+// ---------- shared bits ----------
+function card(title,tag,desc,inner){
+  return `<div class="card"><div class="card-head"><span class="card-title">${title}</span><span class="card-tag">${tag}</span></div><div class="card-desc">${desc}</div>${inner}</div>`;
+}
+function rowHTML(text,on,group,i){
+  return `<div class="row ${on?'checked':''}"><div class="box ${on?'on':''}" data-g="${group}" data-i="${i}" role="checkbox" tabindex="0" aria-checked="${on}" aria-label="${esc(text)}">${CHECK}</div><div class="txt">${esc(text)}</div></div>`;
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function dayName(d){ return ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][d]; }
+
+// ---------- binding ----------
+function bind(){
+  if(editing){ bindEdit(); return; }
+
+  document.querySelectorAll('.box').forEach(b=>{
+    const toggle = async ()=>{
+      const g=b.dataset.g, i=+b.dataset.i;
+      if(g==='setup'){ setupState[i]=!setupState[i]; await save('setup',setupState); }
+      else{ weekState.weekly[i]=!weekState.weekly[i]; await save(curKey,weekState); }
+      const on = g==='setup'?setupState[i]:weekState.weekly[i];
+      b.classList.toggle('on',on); b.setAttribute('aria-checked',on);
+      b.closest('.row').classList.toggle('checked',on);
+      updateProgress();
+    };
+    b.onclick = toggle;
+    b.onkeydown = e=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); toggle(); } };
+  });
+
+  document.querySelectorAll('.dot').forEach(d=>{
+    const toggle = async ()=>{
+      const h=+d.dataset.h, day=+d.dataset.d;
+      weekState.daily[h][day]=!weekState.daily[h][day];
+      await save(curKey,weekState);
+      const on=weekState.daily[h][day];
+      d.classList.toggle('on',on); d.setAttribute('aria-checked',on);
+      updateProgress();
+      renderStreak();
+    };
+    d.onclick = toggle;
+    d.onkeydown = e=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); toggle(); } };
+  });
+
+  const note=document.getElementById('weekNote');
+  if(note){
+    let t;
+    note.oninput = ()=>{ weekState.note=note.value; clearTimeout(t); t=setTimeout(()=>save(curKey,weekState),350); };
+    note.onblur = ()=>{ weekState.note=note.value; save(curKey,weekState); };
+  }
+}
+
+function bindEdit(){
+  // text inputs update config live, debounced save
+  let t;
+  const persist=()=>{ clearTimeout(t); t=setTimeout(saveConfig,300); };
+  document.querySelectorAll('.edit-input[data-g]').forEach(inp=>{
+    inp.oninput = ()=>{
+      const g=inp.dataset.g, i=+inp.dataset.i, f=inp.dataset.f;
+      if(g==='setup') config.setup[i]=inp.value;
+      else if(g==='goal') config.goals[i]=inp.value;
+      else if(g==='habit') config.habits[i][f]=inp.value;
+      persist();
+    };
+  });
+  const titleEdit=document.getElementById('titleEdit');
+  if(titleEdit) titleEdit.oninput=()=>{ config.title=titleEdit.value; persist(); };
+
+  document.querySelectorAll('[data-add]').forEach(b=>{
+    b.onclick = async ()=>{
+      const g=b.dataset.add;
+      if(g==='setup') config.setup.push("");
+      else if(g==='goal') config.goals.push("");
+      else if(g==='habit') config.habits.push({t:"",n:""});
+      await applyConfigChange();
+    };
+  });
+  document.querySelectorAll('[data-del]').forEach(b=>{
+    b.onclick = async ()=>{
+      const g=b.dataset.g, i=+b.dataset.i;
+      list(g).splice(i,1);
+      await applyConfigChange();
+    };
+  });
+  document.querySelectorAll('[data-move]').forEach(b=>{
+    b.onclick = async ()=>{
+      const g=b.dataset.g, i=+b.dataset.i, dir=b.dataset.move==='up'?-1:1, j=i+dir;
+      const arr=list(g);
+      if(j<0||j>=arr.length) return;
+      [arr[i],arr[j]]=[arr[j],arr[i]];
+      await applyConfigChange();
+    };
+  });
+  const reset=document.getElementById('resetBtn');
+  if(reset) reset.onclick = async ()=>{
+    if(!confirm('Reset all items, habits and goals to the original defaults? Your check-offs stay.')) return;
+    config = clone(DEFAULTS);
+    await applyConfigChange();
+  };
+}
+function list(g){ return g==='setup'?config.setup : g==='goal'?config.goals : config.habits; }
+
+// add/remove/reorder/reset all change config shape → persist + reconcile + re-render
+async function applyConfigChange(){
+  await saveConfig();
+  reconcileSetup(); await save('setup',setupState);
+  reconcileWeek(); await save(curKey,weekState);
+  render();
+}
+
+function updateProgress(){
+  let done=0,total=0;
+  weekState.daily.forEach(r=>r.forEach(v=>{total++; if(v)done++;}));
+  weekState.weekly.forEach(v=>{total++; if(v)done++;});
+  const pct = total? Math.round(done/total*100):0;
+  document.getElementById('fill').style.width=pct+'%';
+  document.getElementById('pct').textContent=pct+'%';
+  let full=0;
+  if(weekState.daily.length){
+    for(let d=0;d<7;d++){ if(weekState.daily.every(r=>r[d])) full++; }
+  }
+  document.getElementById('daysDone').innerHTML='Full days <b>'+full+'/7</b>';
+}
+
+// ---- edit toggle ----
+const editToggle=document.getElementById('editToggle');
+editToggle.onclick = ()=>{
+  editing=!editing;
+  editToggle.classList.toggle('on',editing);
+  editToggle.setAttribute('aria-pressed',editing);
+  document.getElementById('editToggleLabel').textContent = editing?'Done':'Edit';
+  document.querySelector('.progress').style.display = editing?'none':'';
+  render();
+};
+
+document.getElementById('prev').onclick=async()=>{cursor.setDate(cursor.getDate()-7);await loadWeek();render();};
+document.getElementById('next').onclick=async()=>{cursor.setDate(cursor.getDate()+7);await loadWeek();render();};
+document.getElementById('thisWeek').onclick=async()=>{cursor=mondayOf(new Date());await loadWeek();render();};
+
+async function go(){
+  await ensureConfig();
+  await ensureSetup();
+  await loadWeek();
+  render();
+}
+go();
+</script>
+</body>
+</html>
